@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic SOC — AI-Powered Security Operations Center</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #0d1224;
+    --border: #1e2d4a;
+    --accent: #00d4ff;
+    --green: #00ff88;
+    --yellow: #ffd700;
+    --orange: #ff8c00;
+    --red: #ff3b5c;
+    --purple: #b44fff;
+    --text: #c8d8f0;
+    --dim: #4a5f7a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Top Bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 1.3em; font-weight: bold; color: var(--accent); letter-spacing: 2px; }
+  .logo span { color: var(--green); }
+  .status-badge {
+    font-size: 0.7em; padding: 3px 10px; border-radius: 20px;
+    border: 1px solid var(--green); color: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  .topbar-stats { display: flex; gap: 24px; }
+  .stat { text-align: center; }
+  .stat-val { font-size: 1.4em; font-weight: bold; }
+  .stat-lbl { font-size: 0.65em; color: var(--dim); letter-spacing: 1px; }
+  .stat-val.red { color: var(--red); }
+  .stat-val.orange { color: var(--orange); }
+  .stat-val.yellow { color: var(--yellow); }
+  .stat-val.green { color: var(--green); }
+
+  .clock { font-size: 0.85em; color: var(--dim); }
+
+  /* ── Main Layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 340px 1fr 300px;
+    grid-template-rows: auto auto;
+    gap: 1px;
+    background: var(--border);
+    height: calc(100vh - 51px);
+  }
+
+  .panel {
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7em; letter-spacing: 2px; color: var(--accent);
+    flex-shrink: 0;
+  }
+  .panel-header .count {
+    background: var(--accent); color: #000;
+    padding: 1px 7px; border-radius: 10px; font-weight: bold;
+  }
+
+  /* ── Alert Feed ── */
+  .alert-feed { overflow-y: auto; flex: 1; }
+  .alert-feed::-webkit-scrollbar { width: 4px; }
+  .alert-feed::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .alert-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(30,45,74,0.5);
+    cursor: pointer;
+    transition: background .15s;
+    font-size: 0.78em;
+  }
+  .alert-item:hover { background: rgba(0,212,255,0.05); }
+  .alert-item.active { background: rgba(0,212,255,0.08); border-left: 2px solid var(--accent); }
+
+  .alert-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .sev {
+    font-size: 0.68em; font-weight: bold; padding: 1px 6px;
+    border-radius: 3px; flex-shrink: 0;
+  }
+  .sev-CRITICAL { background: #ff3b5c22; color: var(--red); border: 1px solid var(--red); }
+  .sev-HIGH     { background: #ff8c0022; color: var(--orange); border: 1px solid var(--orange); }
+  .sev-MEDIUM   { background: #ffd70022; color: var(--yellow); border: 1px solid var(--yellow); }
+  .sev-LOW      { background: #00ff8822; color: var(--green); border: 1px solid var(--green); }
+
+  .alert-title { font-weight: bold; color: #e0eeff; flex: 1; }
+  .alert-meta { color: var(--dim); font-size: 0.9em; }
+  .alert-time { color: var(--dim); font-size: 0.85em; margin-left: auto; flex-shrink: 0; }
+
+  /* ── Investigation Panel (center) ── */
+  .investigation { grid-row: 1 / 3; }
+  .inv-body { flex: 1; overflow-y: auto; padding: 16px; }
+  .inv-body::-webkit-scrollbar { width: 4px; }
+  .inv-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .inc-header {
+    background: rgba(255,59,92,0.07);
+    border: 1px solid rgba(255,59,92,0.3);
+    border-radius: 6px; padding: 14px; margin-bottom: 16px;
+  }
+  .inc-id { font-size: 0.7em; color: var(--dim); margin-bottom: 4px; }
+  .inc-title { font-size: 1.1em; font-weight: bold; color: #fff; margin-bottom: 8px; }
+  .inc-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 0.65em; padding: 2px 8px; border-radius: 10px;
+    background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent);
+  }
+
+  /* Agent Steps */
+  .agent-step {
+    display: flex; gap: 12px; margin-bottom: 16px;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  .agent-avatar {
+    width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1em; flex-shrink: 0;
+    border: 1px solid;
+  }
+  .agent-body { flex: 1; }
+  .agent-name { font-size: 0.68em; color: var(--dim); margin-bottom: 4px; letter-spacing: 1px; }
+  .agent-bubble {
+    background: rgba(13,18,36,0.8);
+    border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px;
+    padding: 10px 12px; font-size: 0.78em; line-height: 1.6;
+  }
+  .agent-bubble .thinking {
+    color: var(--dim); font-style: italic; margin-bottom: 6px;
+    border-left: 2px solid var(--dim); padding-left: 8px;
+  }
+  .agent-bubble .action {
+    color: var(--accent); font-weight: bold; margin-top: 6px;
+  }
+  .agent-bubble .result { color: var(--green); margin-top: 4px; }
+  .agent-bubble .warn { color: var(--orange); margin-top: 4px; }
+  .agent-bubble .critical { color: var(--red); margin-top: 4px; font-weight: bold; }
+  .agent-bubble .code {
+    background: rgba(0,0,0,0.4); border-radius: 4px; padding: 6px 8px;
+    font-size: 0.9em; margin-top: 6px; overflow-x: auto;
+    border-left: 2px solid var(--purple);
+    color: #d0aaff;
+  }
+
+  /* Timeline connector */
+  .step-connector {
+    width: 1px; background: var(--border);
+    margin: 0 0 0 17px; height: 12px;
+  }
+
+  .cursor-blink {
+    display: inline-block; width: 8px; height: 14px;
+    background: var(--accent); vertical-align: middle;
+    animation: blink .6s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* Action bar */
+  .action-bar {
+    display: flex; gap: 8px; padding: 10px 16px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .btn {
+    font-size: 0.72em; padding: 6px 12px; border-radius: 4px;
+    border: 1px solid; cursor: pointer; font-family: inherit;
+    letter-spacing: 1px; transition: all .2s;
+  }
+  .btn-contain { border-color: var(--orange); color: var(--orange); background: transparent; }
+  .btn-contain:hover { background: rgba(255,140,0,0.15); }
+  .btn-escalate { border-color: var(--red); color: var(--red); background: transparent; }
+  .btn-escalate:hover { background: rgba(255,59,92,0.15); }
+  .btn-close { border-color: var(--green); color: var(--green); background: transparent; }
+  .btn-close:hover { background: rgba(0,255,136,0.12); }
+  .btn-new { border-color: var(--accent); color: var(--accent); background: transparent; margin-left: auto; }
+  .btn-new:hover { background: rgba(0,212,255,0.1); }
+
+  /* ── Right: Agents Roster ── */
+  .agent-roster { overflow-y: auto; flex: 1; padding: 10px; }
+  .roster-card {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 8px; font-size: 0.75em;
+  }
+  .roster-card.busy { border-color: rgba(0,212,255,0.4); background: rgba(0,212,255,0.04); }
+  .roster-card.idle { opacity: .6; }
+  .rc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .rc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .rc-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .rc-dot.idle { background: var(--dim); }
+  .rc-dot.busy { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: pulse 1s infinite; }
+  .rc-name { font-weight: bold; color: #e0eeff; }
+  .rc-role { color: var(--dim); font-size: 0.9em; margin-bottom: 4px; }
+  .rc-task { color: var(--accent); font-size: 0.85em; }
+  .rc-bar-wrap { background: rgba(0,0,0,0.3); border-radius: 2px; height: 3px; margin-top: 6px; }
+  .rc-bar { height: 3px; border-radius: 2px; background: var(--accent); transition: width 1s; }
+
+  /* ── Bottom: Event Log ── */
+  .event-log-panel { grid-column: 1; }
+  .event-log { overflow-y: auto; flex: 1; padding: 6px 0; }
+  .event-log::-webkit-scrollbar { width: 4px; }
+  .event-log::-webkit-scrollbar-thumb { background: var(--border); }
+  .log-line {
+    padding: 2px 14px; font-size: 0.7em; color: var(--dim);
+    font-family: 'Courier New', monospace;
+    animation: fadeIn .2s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .log-line .ts { color: #2a4060; margin-right: 8px; }
+  .log-line .src { color: var(--purple); margin-right: 6px; }
+  .log-line .msg { }
+  .log-line.hl { color: var(--text); }
+  .log-line.hl .msg { color: var(--orange); }
+
+  /* ── Threat Map Panel (right bottom) ── */
+  .threat-map-panel { }
+  #threatCanvas { display: block; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; height: auto; }
+    .investigation { grid-row: auto; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ── TOP BAR ── -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">AGENTIC<span>SOC</span></div>
+    <div class="status-badge">● LIVE</div>
+  </div>
+  <div class="topbar-stats">
+    <div class="stat"><div class="stat-val red" id="cnt-critical">0</div><div class="stat-lbl">CRITICAL</div></div>
+    <div class="stat"><div class="stat-val orange" id="cnt-high">0</div><div class="stat-lbl">HIGH</div></div>
+    <div class="stat"><div class="stat-val yellow" id="cnt-medium">0</div><div class="stat-lbl">MEDIUM</div></div>
+    <div class="stat"><div class="stat-val green" id="cnt-low">0</div><div class="stat-lbl">LOW</div></div>
+    <div class="stat"><div class="stat-val" id="cnt-agents" style="color:var(--purple)">0</div><div class="stat-lbl">AGENTS</div></div>
+    <div class="stat"><div class="stat-val" id="cnt-resolved" style="color:var(--accent)">0</div><div class="stat-lbl">RESOLVED</div></div>
+  </div>
+  <div class="clock" id="clock">--:--:--</div>
+</div>
+
+<!-- ── MAIN GRID ── -->
+<div class="main">
+
+  <!-- LEFT: Alert Feed -->
+  <div class="panel" style="grid-row:1/2">
+    <div class="panel-header">
+      ALERT FEED
+      <span class="count" id="alert-count">0</span>
+    </div>
+    <div class="alert-feed" id="alertFeed"></div>
+  </div>
+
+  <!-- LEFT BOTTOM: Raw Event Log -->
+  <div class="panel event-log-panel" style="grid-row:2/3; max-height:220px">
+    <div class="panel-header">RAW EVENTS</div>
+    <div class="event-log" id="eventLog"></div>
+  </div>
+
+  <!-- CENTER: Investigation -->
+  <div class="panel investigation">
+    <div class="panel-header">
+      ACTIVE INVESTIGATION
+      <span id="inv-badge" style="font-size:0.75em;color:var(--dim)">SELECT AN ALERT</span>
+    </div>
+    <div class="inv-body" id="invBody">
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);font-size:0.8em;text-align:center;gap:10px;flex-direction:column">
+        <div style="font-size:2em">🛡️</div>
+        <div>AI agents are monitoring for threats.<br>Select an alert or wait for auto-triage.</div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-contain" onclick="addResponseAction('contain')">CONTAIN</button>
+      <button class="btn btn-escalate" onclick="addResponseAction('escalate')">ESCALATE</button>
+      <button class="btn btn-close" onclick="addResponseAction('close')">CLOSE</button>
+      <button class="btn btn-new" onclick="triggerNewIncident()">+ NEW INCIDENT</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Agent Roster -->
+  <div class="panel" style="grid-row:1/2">
+    <div class="panel-header">AI AGENT ROSTER</div>
+    <div class="agent-roster" id="agentRoster"></div>
+  </div>
+
+  <!-- RIGHT BOTTOM: Threat Map -->
+  <div class="panel threat-map-panel" style="grid-row:2/3; max-height:220px">
+    <div class="panel-header">THREAT MAP</div>
+    <canvas id="threatCanvas"></canvas>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+
+const AGENTS = [
+  { id:'triage',   name:'TRIAGE-1',    role:'Alert Classifier',       icon:'🔍', color:'#00d4ff', status:'active' },
+  { id:'hunter',   name:'HUNTER-1',    role:'Threat Hunter',          icon:'🎯', color:'#b44fff', status:'active' },
+  { id:'intel',    name:'INTEL-1',     name:'Threat Intel Analyst',   icon:'🧠', color:'#ffd700', status:'active' },
+  { id:'forensic', name:'FORENSIC-1',  role:'Forensic Investigator',  icon:'🔬', color:'#00ff88', status:'idle'   },
+  { id:'responder',name:'RESPONDER-1', role:'Automated Responder',    icon:'⚡', color:'#ff8c00', status:'idle'   },
+  { id:'coord',    name:'COORD-1',     role:'Incident Coordinator',   icon:'📡', color:'#ff3b5c', status:'active' },
+];
+
+const ALERT_TEMPLATES = [
+  {
+    sev:'CRITICAL',
+    title:'Lateral Movement Detected — Domain Controller',
+    desc:'PsExec execution detected moving from WS-42 to DC-01',
+    tags:['lateral-movement','psexec','windows','mitre:T1570'],
+    src:'10.0.1.42', dst:'10.0.0.5',
+    investigation: [
+      { agent:'triage', think:'Correlating against SIEM rules. PsExec invocation on DC-01 is anomalous — this host has never seen admin-tooling from WS-42.', action:'QUERY SIEM(last 72h, src=10.0.1.42, dst=10.0.0.5)', result:'7 events matched. First event 14m ago. No prior history.', type:'normal' },
+      { agent:'hunter', think:'Checking for credential dumping artefacts. LSASS access from same source host would confirm pass-the-hash or pass-the-ticket chain.', action:'QUERY EDR(process=lsass.exe, parent=psexec, host=DC-01)', result:'LSASS opened by PsExecSvc.exe at 14:22:03Z. Memory read flag set.', type:'warn', warn:'Credential dumping likely in progress.' },
+      { agent:'intel', think:'Cross-referencing TTP pattern with known threat actors. Lateral movement + LSASS dump is consistent with several ransomware precursors.', action:'LOOKUP THREAT-INTEL(ttp=[T1570,T1003.001])', result:'Matches APT pattern: BlackCat/ALPHV pre-ransomware staging (confidence 82%).', type:'critical', critical:'HIGH CONFIDENCE ransomware precursor. Immediate containment recommended.' },
+      { agent:'responder', think:'Auto-containment playbook: isolate WS-42 at the network layer, revoke any Kerberos tickets issued within the window, alert on-call analyst.', action:'EXECUTE PLAYBOOK(isolate-host, host=WS-42)', result:'Host WS-42 quarantined. VLAN isolation applied. 3 Kerberos tickets revoked. On-call paged.', type:'result' },
+      { agent:'coord', think:'Escalating to Tier-3 and opening a P1 incident bridge. Preserving forensic artefacts before responder wipes the endpoint.', action:'OPEN INCIDENT BRIDGE(priority=P1, stakeholders=[CISO, IR-Team, Legal])', result:'War-room opened. Forensic snapshot of DC-01 memory captured (4.2 GB). Ticket INC-20260506-0041 raised.', type:'result' },
+    ]
+  },
+  {
+    sev:'HIGH',
+    title:'Phishing Campaign — Credential Harvesting Link',
+    desc:'10 users clicked a lookalike login page for corp SSO portal',
+    tags:['phishing','credential-harvest','email','mitre:T1566.002'],
+    src:'185.220.101.47', dst:'mail-gateway',
+    investigation: [
+      { agent:'triage', think:'Email metadata shows domain lookalike pattern: "corp-sso-login[.]net" vs legitimate "corp-sso[.]com". 10 click-throughs in 4 minutes suggests broad distribution.', action:'QUERY EMAIL-GATEWAY(last 1h, link_domain=corp-sso-login.net)', result:'47 emails delivered, 10 click events logged.', type:'normal' },
+      { agent:'intel', think:'Resolving the phishing domain infrastructure. Let me check passive DNS and hosting history.', action:'LOOKUP PASSIVE-DNS(domain=corp-sso-login.net)', result:'Domain registered 6h ago. Hosted on 185.220.101.47 (Tor exit node). Similar infrastructure used in TA453 campaign (Oct 2025).', type:'warn', warn:'Known threat actor infrastructure.' },
+      { agent:'hunter', think:'Checking if any credentials were actually submitted — look for POST requests to the phishing domain from proxy logs.', action:'QUERY PROXY-LOGS(dst=corp-sso-login.net, method=POST, last=2h)', result:'3 credential submission events found. Users: jsmith, akumar, mrodriguez.', type:'critical', critical:'3 accounts likely compromised. Force password reset and MFA re-enroll immediately.' },
+      { agent:'responder', think:'Executing phishing response playbook: block domain on proxy/DNS, force password reset for affected accounts, scan for OAuth app grants.', action:'EXECUTE PLAYBOOK(block-domain=corp-sso-login.net, reset-accounts=[jsmith,akumar,mrodriguez])', result:'Domain blocked across 4 controls. Password reset emails sent. 0 rogue OAuth grants found.', type:'result' },
+    ]
+  },
+  {
+    sev:'HIGH',
+    title:'Anomalous Cloud API Activity — AWS Root Credentials',
+    desc:'Root account used outside MFA from unknown IP in 3 regions simultaneously',
+    tags:['cloud','aws','root-account','mitre:T1078.004'],
+    src:'203.0.113.77', dst:'aws-api',
+    investigation: [
+      { agent:'triage', think:'Root credential usage without MFA is a critical finding. Three simultaneous regions suggests automated access or credential stuffing at scale.', action:'QUERY CLOUDTRAIL(user=root, last=30min)', result:'CreateUser, AttachPolicy, CreateAccessKey events fired in us-east-1, eu-west-1, ap-southeast-1 within 4 seconds.', type:'warn', warn:'Impossible travel — 3 regions in <5 seconds. Automation or API key compromise.' },
+      { agent:'hunter', think:'Checking what resources were created. CreateUser + AttachPolicy + CreateAccessKey is the classic "establish persistence" chain.', action:'QUERY CLOUDTRAIL(eventName=[CreateUser,AttachPolicy,CreateAccessKey])', result:'New IAM user "svc-backup-temp" created with AdministratorAccess. Access key AKIA... generated.', type:'critical', critical:'Backdoor IAM user created with admin access. Immediate revocation required.' },
+      { agent:'responder', think:'Deactivating root key, deleting backdoor user, enabling SCP restrictions.', action:'EXECUTE PLAYBOOK(revoke-iam-user=svc-backup-temp, rotate-root-credentials, enable-scp-deny-root)', result:'Backdoor user deleted. Root access keys rotated. SCP applied across all 3 regions. CloudTrail alert rule added.', type:'result' },
+      { agent:'forensic', think:'Preserving API call history and exfiltration evidence before keys are fully purged.', action:'SNAPSHOT CLOUDTRAIL(last=2h, export=s3://forensic-bucket/INC-0506)', result:'CloudTrail logs archived. No S3 GetObject or data exfil events found in window.', type:'result' },
+    ]
+  },
+  {
+    sev:'MEDIUM',
+    title:'Brute-Force Attempt — VPN Gateway',
+    desc:'2,400 failed authentication attempts from single IP in 5 minutes',
+    tags:['brute-force','vpn','authentication','mitre:T1110'],
+    src:'91.108.56.122', dst:'vpn-gw-01',
+    investigation: [
+      { agent:'triage', think:'2,400 attempts in 5 minutes is ~8/sec. Classic credential stuffing pattern, not human-speed brute force. Checking if any succeeded.', action:'QUERY VPN-LOGS(src=91.108.56.122, last=10min, result=success)', result:'0 successful authentications.', type:'normal' },
+      { agent:'intel', think:'Looking up this IP against threat feeds and checking geo.', action:'LOOKUP THREAT-INTEL(ip=91.108.56.122)', result:'IP listed on 4 threat feeds. Geo: Moscow, RU. Associated with Mirai botnet C2 infrastructure.', type:'warn', warn:'Known malicious infrastructure. Block recommended.' },
+      { agent:'responder', think:'No successful logins, so this is contained. Blocking IP at perimeter and adding to blocklist.', action:'EXECUTE PLAYBOOK(block-ip=91.108.56.122, scope=perimeter-fw, duration=permanent)', result:'IP blocked on 2 perimeter firewalls. Added to threat blocklist. Rate-limit rule tightened to 10 attempts/min.', type:'result' },
+    ]
+  },
+  {
+    sev:'CRITICAL',
+    title:'Ransomware Execution — File Encryption Detected',
+    desc:'Mass file rename (.locked extension) across 3 file servers in 90 seconds',
+    tags:['ransomware','file-encryption','mitre:T1486','P1'],
+    src:'192.168.10.55', dst:'FS-01,FS-02,FS-03',
+    investigation: [
+      { agent:'triage', think:'.locked extension + mass rename at this rate is unambiguous ransomware. Time to containment is critical.', action:'QUERY EDR(file_extension=.locked, last=5min)', result:'14,832 files renamed in 90 seconds across FS-01, FS-02, FS-03. Originating process: svchost.exe (hollowed).', type:'critical', critical:'ACTIVE RANSOMWARE EXECUTION. Initiating emergency containment.' },
+      { agent:'responder', think:'Every second matters. Isolating all three file servers at the hypervisor layer and network switch simultaneously, then snapshotting for recovery.', action:'EXECUTE PLAYBOOK(emergency-isolate=[FS-01,FS-02,FS-03], snapshot-vms, kill-smb)', result:'All 3 servers isolated. SMB disabled enterprise-wide. VM snapshots taken (clean state T-6h). Encryption halted.', type:'result' },
+      { agent:'forensic', think:'Tracing ransomware origin. Initial vector is typically phishing, RDP, or supply chain.', action:'QUERY EDR(process=svchost.exe, trace-parent-chain, host=192.168.10.55)', result:'Chain: explorer.exe → invoice_march.exe (downloaded 2h ago) → powershell.exe → svchost.exe (hollowed). Email vector via user bwilliams.', type:'warn', warn:'Initial access via malicious attachment opened by bwilliams@corp.com 2h ago.' },
+      { agent:'coord', think:'Opening P0 bridge, notifying C-suite, starting IR retainer engagement, checking cyber insurance policy.', action:'OPEN INCIDENT BRIDGE(priority=P0, notify=[CEO,CFO,CISO,Legal,PR,InsuranceCarrier])', result:'P0 war-room live. IR retainer (Mandiant) engaged. Insurance carrier notified per policy. Public comms hold in place.', type:'result' },
+    ]
+  },
+  {
+    sev:'MEDIUM',
+    title:'Suspicious DNS Tunneling Activity',
+    desc:'Unusual TXT record queries with high entropy payload to external resolver',
+    tags:['dns-tunneling','exfiltration','mitre:T1071.004'],
+    src:'10.0.2.88', dst:'8.8.8.8',
+    investigation: [
+      { agent:'triage', think:'High-entropy TXT queries are a classic DNS tunneling signature. Checking query volume and payload size.', action:'QUERY DNS-LOGS(src=10.0.2.88, type=TXT, last=1h)', result:'1,847 TXT queries in 60 min. Avg payload: 190 bytes. Domain: d8f3k.tunnel-relay.io', type:'warn', warn:'DNS tunneling indicators. Possible covert channel or data exfiltration.' },
+      { agent:'hunter', think:'Calculating data volume that could have been exfiltrated via this channel.', action:'CALCULATE EXFIL-VOLUME(queries=1847, avg_payload=190b)', result:'Estimated ~340 KB exfiltrated. Low volume — likely command & control, not bulk data theft.', type:'normal' },
+      { agent:'intel', think:'Checking the tunneling infrastructure domain.', action:'LOOKUP THREAT-INTEL(domain=tunnel-relay.io)', result:'Domain used by Iodine/dnscat2 tunneling tools. No specific threat actor attribution.', type:'normal' },
+      { agent:'responder', think:'Blocking the DNS tunnel domain and adding DNS monitoring rule. Host 10.0.2.88 needs deeper forensic review.', action:'EXECUTE PLAYBOOK(block-domain=tunnel-relay.io, quarantine-host=10.0.2.88, alert=forensic-team)', result:'Domain blocked on DNS resolver. Host quarantined for forensic review. Forensic-1 agent tasked.', type:'result' },
+    ]
+  },
+];
+
+const RAW_EVENTS = [
+  '[SIEM]     Authentication failure: user=admin src=185.220.101.47',
+  '[EDR]      New process: cmd.exe parent=word.exe host=WS-14',
+  '[FW]       DENY tcp 203.0.113.77:4444 -> 10.0.1.99:443',
+  '[PROXY]    GET http://malware-c2[.]ru/payload.bin (blocked)',
+  '[IAM]      User login: jsmith from 198.51.100.22 (new location)',
+  '[SIEM]     Privilege escalation: sudo -l by www-data on WEBSVR-01',
+  '[EDR]      Suspicious encoded PowerShell detected on WS-42',
+  '[DNS]      Query: update-windows[.]com (lookalike domain)',
+  '[SIEM]     Port scan detected: 192.168.5.201 -> 10.0.0.0/24',
+  '[FW]       ALLOW outbound 10.0.1.42:49832 -> 8.8.8.8:53 (high freq)',
+  '[IAM]      MFA bypass attempt for account: ceo@corp.com',
+  '[EDR]      Ransomware signature match: file=invoice.exe host=WS-07',
+  '[CLOUD]    S3 bucket policy changed: corp-data-prod (public access)',
+  '[SIEM]     Lateral movement: net use \\DC-01\ADMIN$ from WS-42',
+  '[VPN]      Auth failure burst: 340/min from 91.108.56.122',
+  '[EDR]      DLL injection into lsass.exe detected: host=DC-01',
+  '[PROXY]    Unusual outbound: 2.1GB to 51.15.188.199 (cloud-vps)',
+  '[IAM]      Root login (no MFA): AWS account 123456789012',
+  '[DNS]      High-entropy TXT queries: *.tunnel-relay.io (1847/hr)',
+  '[SIEM]     File encryption event: .locked (14832 files/90s)',
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let alerts = [];
+let selectedAlert = null;
+let agentBusy = {};
+let resolvedCount = 0;
+let alertIdCounter = 0;
+let invAnimating = false;
+
+// ─────────────────────────────────────────────
+// CLOCK
+// ─────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toUTCString().slice(17, 25) + ' UTC';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─────────────────────────────────────────────
+// COUNTERS
+// ─────────────────────────────────────────────
+function updateCounters() {
+  const counts = { CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0 };
+  alerts.forEach(a => { if (!a.resolved) counts[a.sev]++; });
+  document.getElementById('cnt-critical').textContent = counts.CRITICAL;
+  document.getElementById('cnt-high').textContent = counts.HIGH;
+  document.getElementById('cnt-medium').textContent = counts.MEDIUM;
+  document.getElementById('cnt-low').textContent = counts.LOW;
+  document.getElementById('cnt-agents').textContent = AGENTS.length;
+  document.getElementById('cnt-resolved').textContent = resolvedCount;
+  document.getElementById('alert-count').textContent = alerts.filter(a=>!a.resolved).length;
+}
+
+// ─────────────────────────────────────────────
+// ALERT FEED
+// ─────────────────────────────────────────────
+function addAlert(template) {
+  const id = ++alertIdCounter;
+  const ts = new Date().toISOString().slice(11,19);
+  const alert = { id, ts, ...template, resolved: false };
+  alerts.unshift(alert);
+  renderAlertFeed();
+  updateCounters();
+  return alert;
+}
+
+function renderAlertFeed() {
+  const feed = document.getElementById('alertFeed');
+  feed.innerHTML = alerts.map(a => `
+    <div class="alert-item ${selectedAlert && selectedAlert.id === a.id ? 'active' : ''} ${a.resolved ? 'resolved' : ''}"
+         onclick="selectAlert(${a.id})"
+         style="${a.resolved ? 'opacity:.4' : ''}">
+      <div class="alert-top">
+        <span class="sev sev-${a.sev}">${a.sev}</span>
+        <span class="alert-title">${a.title}</span>
+        <span class="alert-time">${a.ts}</span>
+      </div>
+      <div class="alert-meta">${a.desc}</div>
+    </div>
+  `).join('');
+}
+
+function selectAlert(id) {
+  selectedAlert = alerts.find(a => a.id === id);
+  renderAlertFeed();
+  startInvestigation(selectedAlert);
+}
+
+// ─────────────────────────────────────────────
+// INVESTIGATION
+// ─────────────────────────────────────────────
+function startInvestigation(alert) {
+  if (invAnimating) return;
+  invAnimating = true;
+
+  const body = document.getElementById('invBody');
+  document.getElementById('inv-badge').textContent = `INC-${String(alert.id).padStart(4,'0')} · ${alert.sev}`;
+
+  body.innerHTML = `
+    <div class="inc-header">
+      <div class="inc-id">INCIDENT INC-${String(alert.id).padStart(4,'0')} · ${alert.ts} UTC</div>
+      <div class="inc-title">${alert.title}</div>
+      <div class="inc-tags">
+        ${alert.tags.map(t=>`<span class="tag">${t}</span>`).join('')}
+        <span class="tag">src:${alert.src}</span>
+        <span class="tag">dst:${alert.dst}</span>
+      </div>
+    </div>
+    <div id="stepsContainer"></div>
+  `;
+
+  // animate steps
+  let stepIdx = 0;
+  function nextStep() {
+    if (stepIdx >= alert.investigation.length) {
+      invAnimating = false;
+      return;
+    }
+    const step = alert.investigation[stepIdx++];
+    const agent = AGENTS.find(a => a.id === step.agent);
+    setAgentBusy(agent.id, true);
+
+    const container = document.getElementById('stepsContainer');
+    if (container.children.length > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'step-connector';
+      container.appendChild(conn);
+    }
+
+    const el = document.createElement('div');
+    el.className = 'agent-step';
+    el.innerHTML = `
+      <div class="agent-avatar" style="background:${agent.color}22;border-color:${agent.color};color:${agent.color}">
+        ${agent.icon}
+      </div>
+      <div class="agent-body">
+        <div class="agent-name">${agent.name || agent.id.toUpperCase()} · ${agent.role}</div>
+        <div class="agent-bubble">
+          <div class="thinking">💭 ${step.think}</div>
+          <div class="action">▶ ${step.action}</div>
+          <div id="result-${alertIdCounter}-${stepIdx}"></div>
+        </div>
+      </div>
+    `;
+    container.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+
+    // show result after delay
+    setTimeout(() => {
+      const resultEl = document.getElementById(`result-${alertIdCounter}-${stepIdx}`);
+      if (!resultEl) return;
+      if (step.type === 'warn') {
+        resultEl.innerHTML = `<div class="result">✓ ${step.result}</div><div class="warn">⚠ ${step.warn}</div>`;
+      } else if (step.type === 'critical') {
+        resultEl.innerHTML = `<div class="result">✓ ${step.result}</div><div class="critical">🚨 ${step.critical}</div>`;
+      } else if (step.type === 'result') {
+        resultEl.innerHTML = `<div class="result">✓ ${step.result}</div>`;
+      } else {
+        resultEl.innerHTML = `<div class="result">✓ ${step.result}</div>`;
+      }
+      body.scrollTop = body.scrollHeight;
+      setAgentBusy(agent.id, false);
+      setTimeout(nextStep, 1200 + Math.random() * 600);
+    }, 1400 + Math.random() * 800);
+  }
+
+  setTimeout(nextStep, 300);
+}
+
+// ─────────────────────────────────────────────
+// AGENT ROSTER
+// ─────────────────────────────────────────────
+function setAgentBusy(id, busy) {
+  agentBusy[id] = busy;
+  renderRoster();
+}
+
+function renderRoster() {
+  const el = document.getElementById('agentRoster');
+  el.innerHTML = AGENTS.map(a => {
+    const busy = agentBusy[a.id];
+    const dotClass = busy ? 'busy' : (a.status === 'active' ? 'active' : 'idle');
+    const statusLabel = busy ? 'INVESTIGATING' : (a.status === 'active' ? 'MONITORING' : 'STANDBY');
+    const barW = busy ? Math.floor(30 + Math.random()*60) : (a.status === 'active' ? 15 : 5);
+    return `
+      <div class="roster-card ${busy ? 'busy' : a.status}">
+        <div class="rc-top">
+          <div class="rc-dot ${dotClass}"></div>
+          <div style="color:${a.color};font-size:1.1em">${a.icon}</div>
+          <div class="rc-name">${a.name || a.id.toUpperCase()}</div>
+        </div>
+        <div class="rc-role">${a.role}</div>
+        <div class="rc-task" style="color:${busy ? 'var(--yellow)' : a.status==='active' ? a.color : 'var(--dim)'}">
+          ${statusLabel}
+        </div>
+        <div class="rc-bar-wrap">
+          <div class="rc-bar" style="width:${barW}%;background:${a.color}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// RAW EVENT LOG
+// ─────────────────────────────────────────────
+let logIdx = 0;
+function addLogLine() {
+  const log = document.getElementById('eventLog');
+  const event = RAW_EVENTS[logIdx % RAW_EVENTS.length];
+  logIdx++;
+  const ts = new Date().toISOString().slice(11,23);
+  const isHl = event.includes('Ransomware') || event.includes('Root') || event.includes('lsass');
+  const line = document.createElement('div');
+  line.className = `log-line${isHl?' hl':''}`;
+  line.innerHTML = `<span class="ts">${ts}</span><span class="msg">${event}</span>`;
+  log.appendChild(line);
+  // keep max 80 lines
+  while (log.children.length > 80) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+
+setInterval(addLogLine, 800 + Math.random()*1200);
+
+// ─────────────────────────────────────────────
+// THREAT MAP CANVAS
+// ─────────────────────────────────────────────
+const canvas = document.getElementById('threatCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const parent = canvas.parentElement;
+  canvas.width = parent.clientWidth;
+  canvas.height = parent.clientHeight - 31; // minus header
+}
+window.addEventListener('resize', resizeCanvas);
+setTimeout(resizeCanvas, 100);
+
+const NODES = [];
+const PULSES = [];
+
+function initNodes() {
+  const locations = [
+    {x:.5, y:.5, label:'HQ', color:'#00d4ff', r:8},
+    {x:.2, y:.3, label:'EU-DC', color:'#00ff88', r:5},
+    {x:.8, y:.2, label:'CLOUD', color:'#b44fff', r:5},
+    {x:.15, y:.7, label:'ATTACKER', color:'#ff3b5c', r:6, threat:true},
+    {x:.85, y:.75, label:'ATTACKER', color:'#ff3b5c', r:5, threat:true},
+    {x:.6, y:.15, label:'VPN-GW', color:'#ffd700', r:4},
+    {x:.35, y:.8, label:'WS-42', color:'#ff8c00', r:4},
+  ];
+  NODES.length = 0;
+  locations.forEach(n => NODES.push({...n, px: n.x * canvas.width, py: n.y * canvas.height}));
+}
+
+function spawnPulse() {
+  const threats = NODES.filter(n => n.threat);
+  const targets = NODES.filter(n => !n.threat);
+  const src = threats[Math.floor(Math.random()*threats.length)];
+  const dst = targets[Math.floor(Math.random()*targets.length)];
+  PULSES.push({ sx: src.px, sy: src.py, tx: dst.px, ty: dst.py, t: 0, color: src.color });
+}
+
+function drawMap() {
+  if (!canvas.width) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // grid
+  ctx.strokeStyle = 'rgba(30,45,74,0.4)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+  }
+
+  // update node positions
+  NODES.forEach(n => { n.px = n.x * canvas.width; n.py = n.y * canvas.height; });
+
+  // draw connections
+  NODES.filter(n=>!n.threat).forEach(a => {
+    NODES.filter(n=>!n.threat && n!==a).forEach(b => {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0,212,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.moveTo(a.px, a.py); ctx.lineTo(b.px, b.py);
+      ctx.stroke();
+    });
+  });
+
+  // pulses
+  PULSES.forEach((p,i) => {
+    p.t += 0.018;
+    const x = p.sx + (p.tx - p.sx) * p.t;
+    const y = p.sy + (p.ty - p.sy) * p.t;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+  // remove finished pulses
+  for (let i = PULSES.length-1; i >= 0; i--) {
+    if (PULSES[i].t >= 1) PULSES.splice(i,1);
+  }
+
+  // nodes
+  NODES.forEach(n => {
+    ctx.beginPath();
+    ctx.arc(n.px, n.py, n.r, 0, Math.PI*2);
+    ctx.fillStyle = n.color + '33';
+    ctx.strokeStyle = n.color;
+    ctx.lineWidth = 1.5;
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#c8d8f0';
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(n.label, n.px, n.py + n.r + 10);
+  });
+
+  requestAnimationFrame(drawMap);
+}
+
+setTimeout(() => { initNodes(); drawMap(); }, 200);
+setInterval(spawnPulse, 1200);
+
+// ─────────────────────────────────────────────
+// RESPONSE ACTIONS
+// ─────────────────────────────────────────────
+function addResponseAction(type) {
+  if (!selectedAlert) return;
+  const body = document.getElementById('invBody');
+  const container = document.getElementById('stepsContainer');
+  if (!container) return;
+
+  const msgs = {
+    contain: { icon:'🔒', msg:'Manual containment triggered. Host isolation playbook executed.', color:'var(--orange)' },
+    escalate: { icon:'📢', msg:'Escalated to Tier-3 analyst team. PagerDuty alert sent.', color:'var(--red)' },
+    close: { icon:'✅', msg:'Incident closed. Post-incident report scheduled for T+24h.', color:'var(--green)' },
+  };
+  const m = msgs[type];
+
+  const conn = document.createElement('div');
+  conn.className = 'step-connector';
+  container.appendChild(conn);
+
+  const el = document.createElement('div');
+  el.className = 'agent-step';
+  el.innerHTML = `
+    <div class="agent-avatar" style="background:${m.color}22;border-color:${m.color};color:${m.color};font-size:1.3em">
+      ${m.icon}
+    </div>
+    <div class="agent-body">
+      <div class="agent-name">ANALYST · MANUAL ACTION</div>
+      <div class="agent-bubble">
+        <div class="result">${m.msg}</div>
+      </div>
+    </div>
+  `;
+  container.appendChild(el);
+  body.scrollTop = body.scrollHeight;
+
+  if (type === 'close') {
+    selectedAlert.resolved = true;
+    resolvedCount++;
+    updateCounters();
+    renderAlertFeed();
+  }
+}
+
+// ─────────────────────────────────────────────
+// AUTO DEMO — Spawn alerts over time
+// ─────────────────────────────────────────────
+let templateIdx = 0;
+function spawnNextAlert() {
+  const t = ALERT_TEMPLATES[templateIdx % ALERT_TEMPLATES.length];
+  templateIdx++;
+  const alert = addAlert(t);
+  // auto-select first critical/high if nothing selected
+  if (!selectedAlert && (t.sev === 'CRITICAL' || t.sev === 'HIGH')) {
+    selectAlert(alert.id);
+  }
+}
+
+function triggerNewIncident() {
+  const t = ALERT_TEMPLATES[templateIdx % ALERT_TEMPLATES.length];
+  templateIdx++;
+  const alert = addAlert(t);
+  selectAlert(alert.id);
+}
+
+// Seed initial alerts and then drip in more
+spawnNextAlert();
+setTimeout(spawnNextAlert, 4000);
+setTimeout(spawnNextAlert, 9000);
+setTimeout(spawnNextAlert, 15000);
+setTimeout(spawnNextAlert, 22000);
+setInterval(spawnNextAlert, 35000); // keep dripping
+
+// Initial render
+renderRoster();
+updateCounters();
+
+// Roster heartbeat (agent load bars flicker slightly)
+setInterval(renderRoster, 3000);
+
+// Add initial log lines
+for (let i = 0; i < 8; i++) setTimeout(addLogLine, i * 300);
+</script>
+</body>
+</html>
