@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Fit Calculator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --purple: #667eea;
+            --purple-dark: #764ba2;
+            --bg-light: #f4f5ff;
+            --border: #e0e0f0;
+            --text: #2d2d3a;
+            --muted: #888;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+        }
+
+        .page-wrap {
+            max-width: 1140px;
+            margin: 0 auto;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: color 0.2s;
+        }
+        .back-btn:hover { color: #fff; }
+        .back-btn svg { width: 18px; height: 18px; }
+
+        .hero {
+            text-align: center;
+            color: white;
+            margin-bottom: 28px;
+        }
+        .hero h1 { font-size: clamp(1.8em, 4vw, 2.8em); font-weight: 800; letter-spacing: -0.5px; }
+        .hero p { margin-top: 8px; font-size: 1.05em; opacity: 0.85; }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .card-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+        }
+
+        /* ── INPUT PANEL ── */
+        .input-panel {
+            background: var(--bg-light);
+            padding: 32px 28px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .panel-heading {
+            font-size: 0.72em;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
+        .unit-toggle {
+            display: flex;
+            background: #e4e6f5;
+            border-radius: 9px;
+            padding: 3px;
+            margin-bottom: 22px;
+        }
+        .unit-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            background: transparent;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 700;
+            color: #aaa;
+            transition: all 0.2s;
+        }
+        .unit-btn.active {
+            background: white;
+            color: var(--purple);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group.full { grid-column: span 2; }
+        label {
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #555;
+        }
+        label .hint {
+            font-weight: 400;
+            color: #aaa;
+            font-size: 0.9em;
+        }
+        input[type="number"], select {
+            padding: 9px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95em;
+            color: var(--text);
+            background: white;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+        input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: var(--purple);
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 18px 0;
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+        .chip {
+            padding: 7px 14px;
+            border: 2px solid var(--border);
+            border-radius: 50px;
+            background: white;
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #777;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .chip:hover { border-color: var(--purple); color: var(--purple); }
+        .chip.active {
+            border-color: var(--purple);
+            background: linear-gradient(135deg, #667eea18, #764ba218);
+            color: var(--purple);
+        }
+
+        .bike-type-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .type-btn {
+            padding: 12px 6px 10px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            color: #888;
+        }
+        .type-btn .t-icon { font-size: 1.6em; display: block; margin-bottom: 4px; }
+        .type-btn .t-name { font-size: 0.72em; font-weight: 700; }
+        .type-btn:hover { border-color: var(--purple); color: var(--purple); }
+        .type-btn.active {
+            border-color: var(--purple);
+            background: linear-gradient(135deg, #667eea12, #764ba212);
+            color: var(--purple);
+        }
+
+        .calc-btn {
+            margin-top: auto;
+            padding-top: 20px;
+        }
+        .calc-btn button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05em;
+            font-weight: 800;
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .calc-btn button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(102,126,234,0.45);
+        }
+        .calc-btn button:active { transform: translateY(0); }
+
+        /* ── RESULTS PANEL ── */
+        .results-panel {
+            padding: 32px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #ccc;
+            text-align: center;
+            gap: 16px;
+            padding: 40px 20px;
+        }
+        .empty-state .es-icon { font-size: 4.5em; }
+        .empty-state p { font-size: 1.05em; max-width: 240px; line-height: 1.5; color: #bbb; }
+
+        .results-content { display: none; }
+        .results-content.show { display: flex; flex-direction: column; gap: 20px; }
+
+        /* Frame size hero */
+        .frame-hero {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+            border-radius: 16px;
+            padding: 20px 24px;
+            color: white;
+        }
+        .frame-hero .size-badge {
+            font-size: 3.5em;
+            font-weight: 900;
+            line-height: 1;
+            min-width: 55px;
+        }
+        .frame-hero .size-info h2 { font-size: 1.2em; margin-bottom: 4px; }
+        .frame-hero .size-info p { font-size: 0.88em; opacity: 0.85; line-height: 1.4; }
+
+        /* Metrics grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .metric-card {
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 16px;
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--purple), var(--purple-dark));
+            border-radius: 0 0 10px 10px;
+        }
+        .metric-icon { font-size: 1.3em; margin-bottom: 6px; }
+        .metric-label {
+            font-size: 0.73em;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+        .metric-value {
+            font-size: 1.55em;
+            font-weight: 800;
+            color: var(--purple);
+            line-height: 1;
+        }
+        .metric-unit { font-size: 0.55em; color: #bbb; font-weight: 600; }
+        .metric-note { font-size: 0.75em; color: #aaa; margin-top: 4px; }
+
+        /* Diagram */
+        .diagram-wrap {
+            background: var(--bg-light);
+            border-radius: 14px;
+            border: 2px solid var(--border);
+            padding: 12px 16px 8px;
+        }
+        .diagram-title {
+            font-size: 0.72em;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .diagram-wrap svg { width: 100%; height: auto; display: block; }
+
+        /* Tips */
+        .tips-box {
+            background: #fffbf0;
+            border: 2px solid #fde68a;
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+        .tips-box h4 {
+            color: #b45309;
+            font-size: 0.85em;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+        }
+        .tips-box ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .tips-box li {
+            font-size: 0.84em;
+            color: #78350f;
+            display: flex;
+            gap: 8px;
+            line-height: 1.4;
+        }
+        .tips-box li::before { content: '•'; color: #f59e0b; flex-shrink: 0; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 820px) {
+            .card-layout { grid-template-columns: 1fr; }
+            .input-panel { border-right: none; border-bottom: 1px solid var(--border); }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .input-panel, .results-panel { padding: 22px 18px; }
+            .metrics-grid { grid-template-columns: 1fr 1fr; }
+            .bike-type-grid { grid-template-columns: repeat(3, 1fr); }
+            .form-row { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+    <nav class="nav">
+        <a href="index.html" class="back-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Back to Home
+        </a>
+    </nav>
+
+    <div class="hero">
+        <h1>🚴 Bike Fit Calculator</h1>
+        <p>Enter your measurements to get a professional bike fit recommendation</p>
+    </div>
+
+    <div class="card">
+        <div class="card-layout">
+
+            <!-- ── INPUT PANEL ── -->
+            <div class="input-panel">
+                <div class="panel-heading">Your Measurements</div>
+
+                <div class="unit-toggle">
+                    <button class="unit-btn active" onclick="setUnit('metric')">Metric (cm)</button>
+                    <button class="unit-btn" onclick="setUnit('imperial')">Imperial (in)</button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Height <span class="hint" id="lbl-height">(cm)</span></label>
+                        <input type="number" id="inp-height" placeholder="175" min="100" max="230" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Inseam <span class="hint" id="lbl-inseam">(cm)</span></label>
+                        <input type="number" id="inp-inseam" placeholder="82" min="50" max="120" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Torso <span class="hint" id="lbl-torso">(cm)</span></label>
+                        <input type="number" id="inp-torso" placeholder="58" min="30" max="90" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Arm <span class="hint" id="lbl-arm">(cm)</span></label>
+                        <input type="number" id="inp-arm" placeholder="60" min="30" max="90" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Shoulder width <span class="hint" id="lbl-shoulder">(cm)</span></label>
+                        <input type="number" id="inp-shoulder" placeholder="42" min="25" max="65" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Foot length <span class="hint" id="lbl-foot">(cm)</span></label>
+                        <input type="number" id="inp-foot" placeholder="27" min="18" max="35" step="0.5">
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+                <div class="panel-heading" style="margin-bottom:12px">Flexibility</div>
+                <div class="chip-group" id="flex-group">
+                    <div class="chip active" data-flex="stiff" onclick="setFlex(this)">Stiff</div>
+                    <div class="chip" data-flex="average" onclick="setFlex(this)">Average</div>
+                    <div class="chip" data-flex="flexible" onclick="setFlex(this)">Flexible</div>
+                </div>
+
+                <div class="divider"></div>
+                <div class="panel-heading" style="margin-bottom:12px">Bike Type</div>
+                <div class="bike-type-grid" id="type-group">
+                    <button class="type-btn active" data-type="road" onclick="setType(this)">
+                        <span class="t-icon">🏎</span>
+                        <span class="t-name">Road</span>
+                    </button>
+                    <button class="type-btn" data-type="endurance" onclick="setType(this)">
+                        <span class="t-icon">🚴</span>
+                        <span class="t-name">Endurance</span>
+                    </button>
+                    <button class="type-btn" data-type="gravel" onclick="setType(this)">
+                        <span class="t-icon">🌲</span>
+                        <span class="t-name">Gravel</span>
+                    </button>
+                    <button class="type-btn" data-type="mountain" onclick="setType(this)">
+                        <span class="t-icon">⛰️</span>
+                        <span class="t-name">Mountain</span>
+                    </button>
+                    <button class="type-btn" data-type="hybrid" onclick="setType(this)">
+                        <span class="t-icon">🚲</span>
+                        <span class="t-name">Hybrid</span>
+                    </button>
+                    <button class="type-btn" data-type="tt" onclick="setType(this)">
+                        <span class="t-icon">⏱️</span>
+                        <span class="t-name">TT/Tri</span>
+                    </button>
+                </div>
+
+                <div class="calc-btn">
+                    <button onclick="calculate()">Calculate My Fit →</button>
+                </div>
+            </div>
+
+            <!-- ── RESULTS PANEL ── -->
+            <div class="results-panel">
+                <div class="empty-state" id="empty-state">
+                    <div class="es-icon">📐</div>
+                    <p>Enter your measurements and hit <strong>Calculate</strong> to see your personalised bike fit</p>
+                </div>
+
+                <div class="results-content" id="results-content">
+
+                    <div class="frame-hero">
+                        <div class="size-badge" id="res-frame-size">M</div>
+                        <div class="size-info">
+                            <h2 id="res-frame-label">Medium Frame · 54 cm</h2>
+                            <p id="res-frame-desc">Your ideal seat tube length based on inseam and riding style.</p>
+                        </div>
+                    </div>
+
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon">↕</div>
+                            <div class="metric-label">Saddle Height</div>
+                            <div class="metric-value"><span id="res-saddle-h">—</span><span class="metric-unit" id="u-saddle-h"> cm</span></div>
+                            <div class="metric-note">BB centre to saddle top</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">↔</div>
+                            <div class="metric-label">Saddle Setback</div>
+                            <div class="metric-value"><span id="res-setback">—</span><span class="metric-unit" id="u-setback"> cm</span></div>
+                            <div class="metric-note">Behind BB vertical</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">📏</div>
+                            <div class="metric-label">Stack</div>
+                            <div class="metric-value"><span id="res-stack">—</span><span class="metric-unit" id="u-stack"> mm</span></div>
+                            <div class="metric-note">BB to bar height</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">➡</div>
+                            <div class="metric-label">Reach</div>
+                            <div class="metric-value"><span id="res-reach">—</span><span class="metric-unit" id="u-reach"> mm</span></div>
+                            <div class="metric-note">BB to bar horizontal</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">🔧</div>
+                            <div class="metric-label">Stem Length</div>
+                            <div class="metric-value"><span id="res-stem">—</span><span class="metric-unit"> mm</span></div>
+                            <div class="metric-note">Recommended stem</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">↕</div>
+                            <div class="metric-label">Bar Drop</div>
+                            <div class="metric-value"><span id="res-drop">—</span><span class="metric-unit" id="u-drop"> cm</span></div>
+                            <div class="metric-note" id="drop-note">Saddle–bar difference</div>
+                        </div>
+                    </div>
+
+                    <div class="diagram-wrap">
+                        <div class="diagram-title">Fit Diagram</div>
+                        <svg id="bike-svg" viewBox="0 0 620 310" xmlns="http://www.w3.org/2000/svg">
+                            <!-- drawn by JS -->
+                        </svg>
+                    </div>
+
+                    <div class="tips-box" id="tips-box">
+                        <h4>⚠ Professional Tips</h4>
+                        <ul id="tips-list"></ul>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── STATE ── */
+let unit = 'metric'; // 'metric' | 'imperial'
+let flexibility = 'stiff';
+let bikeType = 'road';
+
+/* ── UNIT TOGGLE ── */
+function setUnit(u) {
+    unit = u;
+    document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('active', b.textContent.startsWith(u === 'metric' ? 'Metric' : 'Imperial')));
+
+    const suffix = u === 'metric' ? '(cm)' : '(in)';
+    ['height','inseam','torso','arm','shoulder','foot'].forEach(f => {
+        document.getElementById('lbl-' + f).textContent = suffix;
+    });
+
+    const ph = u === 'metric'
+        ? {height:'175', inseam:'82', torso:'58', arm:'60', shoulder:'42', foot:'27'}
+        : {height:'69', inseam:'32', torso:'23', arm:'24', shoulder:'17', foot:'11'};
+    for (const [k,v] of Object.entries(ph)) document.getElementById('inp-'+k).placeholder = v;
+
+    // convert current values if any
+    const inputs = ['height','inseam','torso','arm','shoulder','foot'];
+    inputs.forEach(k => {
+        const el = document.getElementById('inp-'+k);
+        const v = parseFloat(el.value);
+        if (!isNaN(v)) {
+            el.value = u === 'imperial'
+                ? roundTo(v / 2.54, 1)
+                : roundTo(v * 2.54, 1);
+        }
+    });
+}
+
+function setFlex(el) {
+    document.querySelectorAll('#flex-group .chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    flexibility = el.dataset.flex;
+}
+
+function setType(el) {
+    document.querySelectorAll('#type-group .type-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    bikeType = el.dataset.type;
+}
+
+/* ── HELPERS ── */
+function roundTo(v, d) { return Math.round(v * Math.pow(10,d)) / Math.pow(10,d); }
+
+function toCm(v) { return unit === 'imperial' ? v * 2.54 : v; }
+function toDisplay(cm) { return unit === 'imperial' ? roundTo(cm / 2.54, 1) : roundTo(cm, 1); }
+function toDisplayMm(cm) {
+    if (unit === 'imperial') return roundTo(cm / 2.54 * 10, 0); // return in 1/10 inches? No, keep mm for stems
+    return Math.round(cm * 10); // mm
+}
+function displayUnit(suffix_metric, suffix_imperial) {
+    return unit === 'metric' ? suffix_metric : suffix_imperial;
+}
+
+/* ── CALCULATIONS ── */
+function getBikeParams(type) {
+    // [frameFactor, saddleFactor, dropMin_cm, dropMax_cm, reachAdjust, setbackBase_cm]
+    const map = {
+        road:      { ff: 0.67, sf: 0.883, dMin: 4,  dMax: 9,  ra: 1.00, sb: 4.0 },
+        endurance: { ff: 0.66, sf: 0.883, dMin: 1,  dMax: 5,  ra: 0.97, sb: 4.5 },
+        gravel:    { ff: 0.65, sf: 0.880, dMin:-1,  dMax: 4,  ra: 0.95, sb: 4.5 },
+        mountain:  { ff: 0.58, sf: 0.875, dMin:-3,  dMax: 2,  ra: 0.90, sb: 3.5 },
+        hybrid:    { ff: 0.61, sf: 0.878, dMin:-5,  dMax: 0,  ra: 0.88, sb: 5.0 },
+        tt:        { ff: 0.68, sf: 0.888, dMin: 8,  dMax: 14, ra: 1.05, sb: 2.5 },
+    };
+    return map[type] || map.road;
+}
+
+function getFlexOffset() {
+    // flexibility adjusts drop (positive = more drop)
+    if (flexibility === 'flexible') return 2.0;
+    if (flexibility === 'stiff')    return -2.0;
+    return 0;
+}
+
+function getFrameLabel(cm, type) {
+    // Road/endurance/gravel seat tube sizes in cm
+    const roadSizes = [
+        [44,'XXS'],[47,'XS'],[50,'S'],[52,'S'],[54,'M'],[56,'M'],[58,'L'],[60,'L'],[62,'XL'],[64,'XL'],[66,'XXL']
+    ];
+    const mtbSizes = [
+        [38,'XS'],[41,'S'],[44,'M'],[47,'L'],[50,'XL'],[53,'XXL']
+    ];
+    const sizes = (type === 'mountain') ? mtbSizes : roadSizes;
+    let best = sizes[0];
+    for (const s of sizes) {
+        if (cm >= s[0] - 1.5) best = s;
+    }
+    return { label: best[1], cm: Math.round(cm) };
+}
+
+function calculate() {
+    const raw = {
+        height:   parseFloat(document.getElementById('inp-height').value),
+        inseam:   parseFloat(document.getElementById('inp-inseam').value),
+        torso:    parseFloat(document.getElementById('inp-torso').value),
+        arm:      parseFloat(document.getElementById('inp-arm').value),
+        shoulder: parseFloat(document.getElementById('inp-shoulder').value),
+        foot:     parseFloat(document.getElementById('inp-foot').value),
+    };
+
+    for (const [k, v] of Object.entries(raw)) {
+        if (isNaN(v) || v <= 0) {
+            alert(`Please enter a valid value for ${k}.`);
+            return;
+        }
+    }
+
+    // Convert all to cm
+    const h = {};
+    for (const k of Object.keys(raw)) h[k] = toCm(raw[k]);
+
+    const p = getBikeParams(bikeType);
+    const flexOff = getFlexOffset();
+
+    // 1. Frame size (seat tube, cm)
+    const frameCm = h.inseam * p.ff;
+
+    // 2. Saddle height (BB centre to saddle top, cm)
+    const saddleH = h.inseam * p.sf;
+
+    // 3. Saddle setback behind BB vertical (cm)
+    const setback = p.sb + (h.inseam - 82) * 0.04;
+
+    // 4. Reach and stack (mm): based on torso + arm and bike type
+    //    Empirical: reach ≈ (torso + arm) * 0.47 * type_factor
+    const reachCm = (h.torso + h.arm) * 0.47 * p.ra;
+    const reachMm = Math.round(reachCm * 10);
+
+    // 5. Bar drop from saddle (cm), positive = bars below saddle
+    const dropMid = (p.dMin + p.dMax) / 2 + flexOff;
+    const dropClamped = Math.max(p.dMin + flexOff - 1, Math.min(p.dMax + flexOff + 1, dropMid));
+    const barDrop = dropClamped;
+
+    // 6. Stack = saddleH - barDrop (bars below saddle level) + small BB offset
+    const stackCm = saddleH - barDrop;
+    const stackMm = Math.round(stackCm * 10);
+
+    // 7. Stem length (mm): difference between bike's typical reach and rider's reach
+    //    Rough guide: longer reach = longer stem; typical frame reach for size
+    const framReachCm = frameCm * 0.64; // typical frame reach ≈ 64% of seat tube
+    const stemCm = reachCm - framReachCm;
+    const stemMm = Math.max(60, Math.min(140, Math.round(stemCm * 10 / 10) * 10)); // round to nearest 10mm
+
+    // Frame label
+    const fl = getFrameLabel(frameCm, bikeType);
+
+    /* ── FILL RESULTS ── */
+    document.getElementById('res-frame-size').textContent = fl.label;
+    document.getElementById('res-frame-label').textContent =
+        `${fl.label} Frame · ${unit === 'imperial' ? roundTo(fl.cm/2.54,1)+'"' : fl.cm+' cm'}`;
+    document.getElementById('res-frame-desc').textContent =
+        `Ideal for your ${unit === 'imperial' ? roundTo(h.inseam/2.54,1)+'"' : Math.round(h.inseam)+'cm'} inseam on a ${bikeType} bike.`;
+
+    document.getElementById('res-saddle-h').textContent = toDisplay(saddleH);
+    document.getElementById('u-saddle-h').textContent = ' ' + (unit === 'metric' ? 'cm' : 'in');
+
+    document.getElementById('res-setback').textContent = toDisplay(setback);
+    document.getElementById('u-setback').textContent = ' ' + (unit === 'metric' ? 'cm' : 'in');
+
+    document.getElementById('res-stack').textContent = stackMm;
+    document.getElementById('u-stack').textContent = ' mm';
+
+    document.getElementById('res-reach').textContent = reachMm;
+    document.getElementById('u-reach').textContent = ' mm';
+
+    document.getElementById('res-stem').textContent = stemMm;
+
+    const dropAbs = Math.abs(barDrop);
+    const dropStr = toDisplay(dropAbs);
+    document.getElementById('res-drop').textContent = dropStr;
+    document.getElementById('u-drop').textContent = ' ' + (unit === 'metric' ? 'cm' : 'in');
+    document.getElementById('drop-note').textContent = barDrop >= 0
+        ? 'Bars below saddle level'
+        : 'Bars above saddle level';
+
+    // Show results
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results-content').classList.add('show');
+
+    // Draw diagram
+    drawDiagram({ saddleH, setback, reachCm, barDrop, frameCm, stemMm });
+
+    // Tips
+    buildTips({ saddleH, setback, barDrop, stemMm, bikeType, flexibility });
+}
+
+/* ── SVG DIAGRAM ── */
+function drawDiagram({ saddleH, setback, reachCm, barDrop, frameCm, stemMm }) {
+    const svg = document.getElementById('bike-svg');
+    const W = 620, H = 310;
+
+    // Fixed layout for SVG (illustrative, not to precise scale)
+    const ground = H - 20;
+    const wr = 72; // wheel radius in px
+
+    const rearX = 148, frontX = 472, axleY = ground - wr;
+    const bbX = 295, bbY = axleY + 28; // BB slightly below axle (BB drop)
+
+    // Seat tube angle 73°: direction (−sin17°, −cos17°) = (−0.292, −0.956)
+    const stLen = 95;
+    const stTop = { x: bbX - 0.292 * stLen, y: bbY - 0.956 * stLen };
+
+    // Saddle: on top of seat post, slightly behind stTop
+    const saddleY = stTop.y - 8;
+    const saddleNose = { x: stTop.x + 12, y: saddleY };
+    const saddleTail = { x: stTop.x - 22, y: saddleY };
+
+    // Head tube: ahead of BB
+    const htTop = { x: 408, y: stTop.y + 2 };
+    const htBot = { x: 416, y: stTop.y + 28 };
+
+    // Top tube
+    const topTube = { x1: stTop.x, y1: stTop.y, x2: htTop.x, y2: htTop.y };
+
+    // Down tube: BB to htBot
+    const downTube = { x1: bbX, y1: bbY, x2: htBot.x, y2: htBot.y };
+
+    // Fork: htBot to front axle
+    const fork = { x1: htBot.x, y1: htBot.y, x2: frontX, y2: axleY };
+
+    // Chain stay & seat stay
+    const chainStay = { x1: bbX, y1: bbY, x2: rearX, y2: axleY };
+    const seatStay = { x1: stTop.x, y1: stTop.y, x2: rearX, y2: axleY };
+
+    // Handlebar: above htTop with some offset
+    const barDropPx = Math.max(-30, Math.min(35, barDrop * 5));
+    const barX = htTop.x + 12;
+    const barY = saddleY + barDropPx;
+
+    // Rider (stick figure)
+    const hipX = stTop.x - 5, hipY = saddleY + 2;
+    // Torso leans forward proportionally
+    const torsoAngle = bikeType === 'road' ? 40 : bikeType === 'tt' ? 20 : bikeType === 'hybrid' ? 70 : 55;
+    const torsoLen = 75;
+    const shoulderX = hipX + torsoLen * Math.cos((90 - torsoAngle) * Math.PI / 180);
+    const shoulderY = hipY - torsoLen * Math.sin((90 - torsoAngle) * Math.PI / 180);
+    const headR = 12;
+    const headX = shoulderX, headY = shoulderY - headR - 2;
+    // arms to bar
+    const elbowX = (shoulderX + barX) / 2 + 5;
+    const elbowY = (shoulderY + barY) / 2 + 10;
+    // legs
+    const kneeX = hipX + 10, kneeY = hipY + 45;
+    const pedalX = bbX + 16, pedalY = bbY + 4;
+
+    const frameColor = '#667eea';
+    const riderColor = '#764ba2';
+    const dimColor = '#f59e0b';
+    const textColor = '#374151';
+
+    let html = `
+    <!-- Ground line -->
+    <line x1="20" y1="${ground}" x2="${W-20}" y2="${ground}" stroke="#e0e0f0" stroke-width="2"/>
+
+    <!-- Wheels -->
+    <circle cx="${rearX}" cy="${axleY}" r="${wr}" fill="none" stroke="${frameColor}" stroke-width="5" opacity="0.9"/>
+    <circle cx="${rearX}" cy="${axleY}" r="${wr-12}" fill="none" stroke="${frameColor}" stroke-width="1.5" opacity="0.3"/>
+    <circle cx="${rearX}" cy="${axleY}" r="5" fill="${frameColor}"/>
+    <circle cx="${frontX}" cy="${axleY}" r="${wr}" fill="none" stroke="${frameColor}" stroke-width="5" opacity="0.9"/>
+    <circle cx="${frontX}" cy="${axleY}" r="${wr-12}" fill="none" stroke="${frameColor}" stroke-width="1.5" opacity="0.3"/>
+    <circle cx="${frontX}" cy="${axleY}" r="5" fill="${frameColor}"/>
+
+    <!-- Frame -->
+    <line x1="${chainStay.x1}" y1="${chainStay.y1}" x2="${chainStay.x2}" y2="${chainStay.y2}" stroke="${frameColor}" stroke-width="5" stroke-linecap="round"/>
+    <line x1="${seatStay.x1}" y1="${seatStay.y1}" x2="${seatStay.x2}" y2="${seatStay.y2}" stroke="${frameColor}" stroke-width="4" stroke-linecap="round"/>
+    <line x1="${bbX}" y1="${bbY}" x2="${stTop.x}" y2="${stTop.y}" stroke="${frameColor}" stroke-width="5" stroke-linecap="round"/>
+    <line x1="${topTube.x1}" y1="${topTube.y1}" x2="${topTube.x2}" y2="${topTube.y2}" stroke="${frameColor}" stroke-width="5" stroke-linecap="round"/>
+    <line x1="${downTube.x1}" y1="${downTube.y1}" x2="${downTube.x2}" y2="${downTube.y2}" stroke="${frameColor}" stroke-width="5" stroke-linecap="round"/>
+    <line x1="${fork.x1}" y1="${fork.y1}" x2="${fork.x2}" y2="${fork.y2}" stroke="${frameColor}" stroke-width="4.5" stroke-linecap="round"/>
+
+    <!-- Head tube -->
+    <line x1="${htTop.x}" y1="${htTop.y}" x2="${htBot.x}" y2="${htBot.y}" stroke="${frameColor}" stroke-width="6" stroke-linecap="round"/>
+
+    <!-- BB circle -->
+    <circle cx="${bbX}" cy="${bbY}" r="8" fill="${frameColor}" opacity="0.9"/>
+    <circle cx="${bbX}" cy="${bbY}" r="4" fill="white"/>
+
+    <!-- Seat post -->
+    <line x1="${stTop.x}" y1="${stTop.y + 5}" x2="${stTop.x}" y2="${saddleY + 2}" stroke="${frameColor}" stroke-width="3.5" stroke-linecap="round"/>
+
+    <!-- Saddle -->
+    <line x1="${saddleTail.x}" y1="${saddleY}" x2="${saddleNose.x}" y2="${saddleY}" stroke="${frameColor}" stroke-width="7" stroke-linecap="round"/>
+
+    <!-- Stem & handlebar -->
+    <line x1="${htTop.x + 4}" y1="${htTop.y - 4}" x2="${barX - 4}" y2="${barY - 4}" stroke="${frameColor}" stroke-width="4" stroke-linecap="round"/>
+    <line x1="${barX - 6}" y1="${barY - 14}" x2="${barX + 6}" y2="${barY + 6}" stroke="${frameColor}" stroke-width="7" stroke-linecap="round"/>
+
+    <!-- Rider -->
+    <circle cx="${headX}" cy="${headY}" r="${headR}" fill="${riderColor}" opacity="0.85"/>
+    <line x1="${shoulderX}" y1="${shoulderY}" x2="${hipX}" y2="${hipY}" stroke="${riderColor}" stroke-width="4.5" stroke-linecap="round"/>
+    <line x1="${shoulderX}" y1="${shoulderY}" x2="${elbowX}" y2="${elbowY}" stroke="${riderColor}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="${elbowX}" y1="${elbowY}" x2="${barX}" y2="${barY}" stroke="${riderColor}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="${hipX}" y1="${hipY}" x2="${kneeX}" y2="${kneeY}" stroke="${riderColor}" stroke-width="4" stroke-linecap="round"/>
+    <line x1="${kneeX}" y1="${kneeY}" x2="${pedalX}" y2="${pedalY}" stroke="${riderColor}" stroke-width="3.5" stroke-linecap="round"/>
+
+    <!-- ── DIMENSION LINES ── -->
+
+    <!-- Saddle height: vertical from BB to saddle -->
+    <line x1="${bbX - 32}" y1="${bbY}" x2="${bbX - 32}" y2="${saddleY}" stroke="${dimColor}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+    <line x1="${bbX - 37}" y1="${bbY}" x2="${bbX - 27}" y2="${bbY}" stroke="${dimColor}" stroke-width="1.5"/>
+    <line x1="${bbX - 37}" y1="${saddleY}" x2="${bbX - 27}" y2="${saddleY}" stroke="${dimColor}" stroke-width="1.5"/>
+    <text x="${bbX - 50}" y="${(bbY + saddleY) / 2 + 5}" font-size="9" fill="${textColor}" text-anchor="middle" transform="rotate(-90, ${bbX - 50}, ${(bbY + saddleY) / 2})" font-weight="700" font-family="sans-serif">SADDLE HT</text>
+    <text x="${bbX - 62}" y="${(bbY + saddleY) / 2 + 5}" font-size="10" fill="${dimColor}" text-anchor="middle" transform="rotate(-90, ${bbX - 62}, ${(bbY + saddleY) / 2})" font-weight="800" font-family="sans-serif" id="dim-saddleH">${unit === 'metric' ? Math.round(saddleH)+'cm' : roundTo(saddleH/2.54,1)+'"'}</text>
+
+    <!-- Bar drop: from saddle to bar (if applicable) -->
+    ${Math.abs(barDrop) > 0.5 ? `
+    <line x1="${barX + 28}" y1="${saddleY}" x2="${barX + 28}" y2="${barY}" stroke="${dimColor}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+    <line x1="${barX + 23}" y1="${saddleY}" x2="${barX + 33}" y2="${saddleY}" stroke="${dimColor}" stroke-width="1.5"/>
+    <line x1="${barX + 23}" y1="${barY}" x2="${barX + 33}" y2="${barY}" stroke="${dimColor}" stroke-width="1.5"/>
+    <text x="${barX + 44}" y="${(saddleY + barY) / 2 + 5}" font-size="9" fill="${textColor}" text-anchor="middle" transform="rotate(90, ${barX + 44}, ${(saddleY + barY) / 2})" font-weight="700" font-family="sans-serif">DROP</text>
+    <text x="${barX + 55}" y="${(saddleY + barY) / 2 + 5}" font-size="10" fill="${dimColor}" text-anchor="middle" transform="rotate(90, ${barX + 55}, ${(saddleY + barY) / 2})" font-weight="800" font-family="sans-serif">${unit === 'metric' ? Math.round(Math.abs(barDrop))+'cm' : roundTo(Math.abs(barDrop)/2.54,1)+'"'}</text>
+    ` : ''}
+
+    <!-- Reach: horizontal from saddle nose to bar -->
+    <line x1="${saddleNose.x}" y1="${saddleY + 28}" x2="${barX}" y2="${saddleY + 28}" stroke="${dimColor}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+    <line x1="${saddleNose.x}" y1="${saddleY + 23}" x2="${saddleNose.x}" y2="${saddleY + 33}" stroke="${dimColor}" stroke-width="1.5"/>
+    <line x1="${barX}" y1="${saddleY + 23}" x2="${barX}" y2="${saddleY + 33}" stroke="${dimColor}" stroke-width="1.5"/>
+    <text x="${(saddleNose.x + barX) / 2}" y="${saddleY + 42}" font-size="9" fill="${textColor}" text-anchor="middle" font-weight="700" font-family="sans-serif">REACH</text>
+    <text x="${(saddleNose.x + barX) / 2}" y="${saddleY + 54}" font-size="10" fill="${dimColor}" text-anchor="middle" font-weight="800" font-family="sans-serif">${Math.round(reachCm * 10)}mm</text>
+    `;
+
+    svg.innerHTML = html;
+}
+
+/* ── TIPS ── */
+function buildTips({ saddleH, setback, barDrop, stemMm, bikeType, flexibility }) {
+    const tips = [];
+
+    tips.push('Always get a professional fitting to fine-tune these calculations — individual anatomy varies.');
+
+    if (flexibility === 'stiff') {
+        tips.push('Your stiff flexibility means start with bars at or just below saddle height and work down gradually.');
+    } else if (flexibility === 'flexible') {
+        tips.push('Your good flexibility allows a more aggressive position; ease into larger bar drops over several weeks.');
+    }
+
+    if (bikeType === 'road' || bikeType === 'tt') {
+        tips.push('Check knee-over-pedal spindle (KOPS): with crank horizontal, knee should be directly above pedal axle.');
+        tips.push('Saddle tilt should be 0–2° nose up; excess tilt causes lower-back strain.');
+    }
+
+    if (bikeType === 'mountain') {
+        tips.push('For trail/enduro riding, set saddle 5–10mm lower than calculated to help weight shifts.');
+        tips.push('Consider a dropper post — lowering saddle mid-descent dramatically improves handling.');
+    }
+
+    if (bikeType === 'hybrid' || bikeType === 'endurance') {
+        tips.push('An upright position reduces wrist/neck strain for longer commutes and casual rides.');
+    }
+
+    tips.push('Cleat alignment: most riders benefit from a 5–10° float cleat to prevent knee tracking issues.');
+    tips.push('After changing saddle height by more than 5mm, allow 2 weeks of riding to adapt before further adjustments.');
+
+    const ul = document.getElementById('tips-list');
+    ul.innerHTML = tips.map(t => `<li>${t}</li>`).join('');
+}
+</script>
+</body>
+</html>
